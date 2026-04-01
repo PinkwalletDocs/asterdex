@@ -24,7 +24,8 @@ jobs:
       - run: npm ci
       - run: npm run build
         env:
-          VITE_WALLETCONNECT_PROJECT_ID: ${{ secrets.VITE_WALLETCONNECT_PROJECT_ID }}
+          # 优先用仓库 Secret；未配置时使用项目默认 ID（也可在 Reown 后台轮换）
+          VITE_WALLETCONNECT_PROJECT_ID: ${{ secrets.VITE_WALLETCONNECT_PROJECT_ID || 'e032329eecfa12b05a477b95cdcb60a6' }}
       - uses: actions/upload-pages-artifact@v4
         with:
           path: dist

@@ -13,6 +13,9 @@ import { BrowserProvider, Contract, formatUnits, parseUnits, type Signer } from 
 import EthereumProvider from "@walletconnect/ethereum-provider";
 import { BSC_CHAIN_HEX, BSC_CHAIN_ID, BSC_RPC, ERC20_ABI, KNOWN_TOKENS, POOL_ADDRESS } from "../config";
 import { subscribeWallets, type AnnouncedWallet } from "../eip6963";
+
+/** When no EIP-6963 announcement, still allow direct connect via legacy `window.ethereum` (many in-app browsers). */
+const LEGACY_WINDOW_ETHEREUM_UUID = "00000000-0000-7000-8000-000000000001";
 import {
   getWalletConnectProjectId,
   WC_OPTIONAL_CHAIN_IDS,
@@ -135,6 +138,30 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setWallets((prev) => (prev.some((p) => p.info.uuid === w.info.uuid) ? prev : [...prev, w]));
     });
   }, []);
+
+  const injectedWallets = useMemo((): AnnouncedWallet[] => {
+    if (wallets.length > 0) return wallets;
+    if (typeof window === "undefined") return [];
+    const eth = (
+      window as Window & {
+        ethereum?: { request?: (args: { method: string; params?: unknown[] }) => Promise<unknown> };
+      }
+    ).ethereum;
+    if (!eth?.request) return [];
+    return [
+      {
+        info: {
+          uuid: LEGACY_WINDOW_ETHEREUM_UUID,
+          name: "浏览器内钱包",
+          icon: "",
+          rdns: "window.ethereum",
+        },
+        provider: eth as AnnouncedWallet["provider"],
+      },
+    ];
+  }, [wallets]);
+
+  const hasInjectedWallet = injectedWallets.length > 0;
 
   const refreshBalancesInternal = useCallback(async (sig: Signer, user: string) => {
     setLoadingBal(true);
@@ -479,52 +506,76 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             <div id="wallet-modal-title" className="wallet-modal-screen-title">
               连接钱包
             </div>
-            <div className="wallet-modal-wc-block">
-              <button
-                type="button"
-                className="wallet-modal-wc-btn"
-                data-connect-wallet="true"
-                disabled={wcConnecting}
-                onClick={() => void connectWalletConnect()}
-              >
-                {wcConnecting ? "正在打开扫码…" : "扫码连接钱包"}
-              </button>
-              <p className="wallet-modal-wc-hint">
-                {walletConnectConfigured
-                  ? "使用 MetaMask / Trust / OKX 等扫描二维码，支持 BSC、ETH、Polygon 等 EVM 链"
-                  : "若无法扫码，请在部署环境配置 VITE_WALLETCONNECT_PROJECT_ID（Reown Cloud）"}
-              </p>
-            </div>
             <div className="wallet-modal-brand wallet-modal-brand-compact">
               <img className="wallet-modal-logo" src={ASTER_LOGO_URL} alt="" />
               <span className="wallet-modal-brand-caption">Connect with Aster</span>
             </div>
-            <div className="wallet-modal-list">
-              {wallets.length ? (
-                wallets.map((w) => (
-                  <button
-                    key={w.info.uuid}
-                    type="button"
-                    className="wallet-modal-option"
-                    data-connect-wallet="true"
-                    onClick={() => void connectWallet(w)}
-                  >
-                    {w.info.icon ? (
-                      <img src={w.info.icon} alt="" className="wallet-modal-option-icon" referrerPolicy="no-referrer" />
-                    ) : (
-                      <span className="wallet-modal-option-fallback" />
-                    )}
-                    <span className="wallet-modal-option-name">{w.info.name}</span>
-                  </button>
-                ))
-              ) : (
-                <div className="wallet-modal-empty">
-                  未检测到浏览器扩展钱包。
-                  <br />
-                  <span className="wallet-modal-empty-sub">请优先使用上方「扫码连接」，或在内置浏览器中打开本页。</span>
+
+            {hasInjectedWallet ? (
+              <>
+                <p className="wallet-modal-direct-hint">已检测到钱包，请直接连接（扩展或钱包内置浏览器）</p>
+                <div className="wallet-modal-list">
+                  {injectedWallets.map((w) => (
+                    <button
+                      key={w.info.uuid}
+                      type="button"
+                      className="wallet-modal-option"
+                      data-connect-wallet="true"
+                      onClick={() => void connectWallet(w)}
+                    >
+                      {w.info.icon ? (
+                        <img src={w.info.icon} alt="" className="wallet-modal-option-icon" referrerPolicy="no-referrer" />
+                      ) : (
+                        <span className="wallet-modal-option-fallback" />
+                      )}
+                      <span className="wallet-modal-option-name">{w.info.name}</span>
+                    </button>
+                  ))}
                 </div>
-              )}
-            </div>
+                <div className="wallet-modal-wc-block wallet-modal-wc-block--secondary">
+                  <p className="wallet-modal-section-label">其他方式</p>
+                  <button
+                    type="button"
+                    className="wallet-modal-wc-btn wallet-modal-wc-btn--secondary"
+                    data-connect-wallet="true"
+                    disabled={wcConnecting}
+                    onClick={() => void connectWalletConnect()}
+                  >
+                    {wcConnecting ? "正在打开扫码…" : "扫码连接钱包"}
+                  </button>
+                  <p className="wallet-modal-wc-hint">
+                    {walletConnectConfigured
+                      ? "使用手机钱包扫描二维码，支持 BSC、ETH、Polygon 等 EVM 链"
+                      : "使用扫码前请在部署环境配置 VITE_WALLETCONNECT_PROJECT_ID（Reown Cloud）"}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="wallet-modal-wc-block wallet-modal-wc-block--primary">
+                  <button
+                    type="button"
+                    className="wallet-modal-wc-btn"
+                    data-connect-wallet="true"
+                    disabled={wcConnecting}
+                    onClick={() => void connectWalletConnect()}
+                  >
+                    {wcConnecting ? "正在打开扫码…" : "扫码连接钱包"}
+                  </button>
+                  <p className="wallet-modal-wc-hint">
+                    {walletConnectConfigured
+                      ? "当前环境未注入浏览器钱包。请用手机钱包扫描二维码，或在 MetaMask / Trust / OKX 等 App 的内置浏览器中打开本页。"
+                      : "未检测到钱包。请配置 VITE_WALLETCONNECT_PROJECT_ID 以启用扫码，或在钱包 App 内置浏览器中打开。"}
+                  </p>
+                </div>
+                <div className="wallet-modal-empty">
+                  未检测到扩展或内置钱包 Provider。
+                  <span className="wallet-modal-empty-sub">
+                    Telegram 小程序与普通系统浏览器通常需使用上方「扫码连接」。
+                  </span>
+                </div>
+              </>
+            )}
             <p className="wallet-modal-legal">
               注意：通过连接，您同意按照 AsterDex 的{" "}
               <button type="button" className="wallet-modal-legal-link">

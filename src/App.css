@@ -516,10 +516,42 @@ a.nav-item:visited {
   text-align: center;
 }
 
+.wallet-modal-direct-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.wallet-modal-section-label {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #848e9c;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
 .wallet-modal-wc-block {
   margin-bottom: 14px;
   padding-bottom: 14px;
   border-bottom: 1px solid #2a2a2a;
+}
+
+.wallet-modal-wc-block--primary {
+  margin-bottom: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.wallet-modal-wc-block--secondary {
+  margin-top: 4px;
+  margin-bottom: 0;
+  padding-top: 16px;
+  padding-bottom: 4px;
+  border-bottom: none;
+  border-top: 1px solid #2a2a2a;
 }
 
 .wallet-modal-wc-btn {
@@ -548,6 +580,18 @@ a.nav-item:visited {
 .wallet-modal-wc-btn:disabled {
   opacity: 0.55;
   cursor: wait;
+}
+
+.wallet-modal-wc-btn--secondary {
+  border-color: #474d57;
+  background: rgba(255, 255, 255, 0.04);
+  color: #c8cdd5;
+  font-weight: 600;
+}
+
+.wallet-modal-wc-btn--secondary:hover:not(:disabled) {
+  filter: brightness(1.12);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .wallet-modal-wc-hint {
