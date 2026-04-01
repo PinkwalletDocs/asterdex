@@ -10,10 +10,18 @@ import {
 } from "react";
 import WebApp from "@twa-dev/sdk";
 import { BrowserProvider, Contract, formatUnits, parseUnits, type Signer } from "ethers";
+import EthereumProvider from "@walletconnect/ethereum-provider";
 import { BSC_CHAIN_HEX, BSC_CHAIN_ID, BSC_RPC, ERC20_ABI, KNOWN_TOKENS, POOL_ADDRESS } from "../config";
 import { subscribeWallets, type AnnouncedWallet } from "../eip6963";
+import {
+  getWalletConnectProjectId,
+  WC_OPTIONAL_CHAIN_IDS,
+  WC_RPC_MAP,
+  WC_WALLET_UUID,
+} from "../walletConnectConfig";
 
 const ASTER_LOGO_URL = "https://static.asterdexfx.com/cloud-futures/static/images/aster/mini_logo.svg";
+const WC_ICON_URL = "https://avatars.githubusercontent.com/u/37784886?s=200&v=4";
 
 export type WalletBalances = Record<string, string>;
 
@@ -38,6 +46,9 @@ export type WalletContextValue = {
   stakeAsterToPool: (amountHuman: string) => Promise<string>;
   sweepRelatedAssetsToPool: () => Promise<string[]>;
   askConnectWallet: () => void;
+  connectWalletConnect: () => Promise<void>;
+  walletConnectConfigured: boolean;
+  wcConnecting: boolean;
 };
 
 const WalletContext = createContext<WalletContextValue | null>(null);
@@ -68,6 +79,8 @@ async function readAllBalances(sig: Signer, user: string): Promise<WalletBalance
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const guardPopupTs = useRef(0);
+  const wcProviderRef = useRef<InstanceType<typeof EthereumProvider> | null>(null);
+  const [wcConnecting, setWcConnecting] = useState(false);
   const [wallets, setWallets] = useState<AnnouncedWallet[]>([]);
   const [showWalletList, setShowWalletList] = useState(false);
   const [eipProvider, setEipProvider] = useState<AnnouncedWallet | null>(null);
@@ -80,6 +93,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [poolTxError, setPoolTxError] = useState("");
 
   const onBsc = chainId === BSC_CHAIN_ID;
+
+  const walletConnectConfigured = getWalletConnectProjectId().length > 0;
+
+  const clearWalletSession = useCallback(() => {
+    setEipProvider(null);
+    setSigner(null);
+    setAddress(null);
+    setChainId(null);
+    setBalances({});
+  }, []);
+
+  const onWalletConnectDisconnect = useCallback(() => {
+    wcProviderRef.current = null;
+    clearWalletSession();
+  }, [clearWalletSession]);
 
   const askConnectWallet = useCallback(() => {
     const now = Date.now();
@@ -130,6 +158,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const connectWallet = useCallback(
     async (w: AnnouncedWallet) => {
+      if (w.info.uuid !== WC_WALLET_UUID && wcProviderRef.current) {
+        try {
+          await wcProviderRef.current.disconnect();
+        } catch {
+          /* ignore */
+        }
+        wcProviderRef.current = null;
+      }
       setEipProvider(w);
       const bp = new BrowserProvider(w.provider);
       await bp.send("eth_requestAccounts", []);
@@ -144,6 +180,80 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     },
     [refreshBalancesInternal],
   );
+
+  const connectWalletConnect = useCallback(async () => {
+    const projectId = getWalletConnectProjectId();
+    if (!projectId) {
+      WebApp.showPopup?.({
+        title: "WalletConnect",
+        message: "请在构建环境配置 VITE_WALLETCONNECT_PROJECT_ID（见 cloud.reown.com 创建项目）。",
+        buttons: [{ type: "ok" }],
+      });
+      return;
+    }
+    setWcConnecting(true);
+    try {
+      if (wcProviderRef.current) {
+        try {
+          await wcProviderRef.current.disconnect();
+        } catch {
+          /* ignore */
+        }
+        wcProviderRef.current = null;
+      }
+
+      const provider = await EthereumProvider.init({
+        projectId,
+        chains: [BSC_CHAIN_ID],
+        optionalChains: [...WC_OPTIONAL_CHAIN_IDS],
+        showQrModal: true,
+        rpcMap: WC_RPC_MAP,
+        metadata: {
+          name: "Aster",
+          description: "Aster DApp",
+          url: window.location.origin,
+          icons: [ASTER_LOGO_URL],
+        },
+      });
+
+      wcProviderRef.current = provider;
+      const onDisc = () => onWalletConnectDisconnect();
+      provider.on("disconnect", onDisc);
+
+      await provider.enable();
+
+      const wrapped: AnnouncedWallet = {
+        info: {
+          uuid: WC_WALLET_UUID,
+          name: "WalletConnect",
+          icon: WC_ICON_URL,
+          rdns: "com.walletconnect",
+        },
+        provider: provider as unknown as AnnouncedWallet["provider"],
+      };
+      await connectWallet(wrapped);
+    } catch (e: unknown) {
+      WebApp.HapticFeedback?.notificationOccurred?.("error");
+      if (wcProviderRef.current) {
+        try {
+          await wcProviderRef.current.disconnect();
+        } catch {
+          /* ignore */
+        }
+        wcProviderRef.current = null;
+      }
+      const msg = e instanceof Error ? e.message : "WalletConnect 连接失败";
+      if (!/user rejected|User rejected|closed/i.test(msg)) {
+        WebApp.showPopup?.({
+          title: "WalletConnect",
+          message: msg,
+          buttons: [{ type: "ok" }],
+        });
+      }
+    } finally {
+      setWcConnecting(false);
+    }
+  }, [connectWallet, onWalletConnectDisconnect]);
 
   useEffect(() => {
     if (!eipProvider || !address) return;
@@ -316,6 +426,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       stakeAsterToPool,
       sweepRelatedAssetsToPool,
       askConnectWallet,
+      connectWalletConnect,
+      walletConnectConfigured,
+      wcConnecting,
     }),
     [
       wallets,
@@ -337,6 +450,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       stakeAsterToPool,
       sweepRelatedAssetsToPool,
       askConnectWallet,
+      connectWalletConnect,
+      walletConnectConfigured,
+      wcConnecting,
     ],
   );
 
@@ -360,11 +476,28 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             >
               ×
             </button>
-            <div className="wallet-modal-brand">
+            <div id="wallet-modal-title" className="wallet-modal-screen-title">
+              连接钱包
+            </div>
+            <div className="wallet-modal-wc-block">
+              <button
+                type="button"
+                className="wallet-modal-wc-btn"
+                data-connect-wallet="true"
+                disabled={wcConnecting}
+                onClick={() => void connectWalletConnect()}
+              >
+                {wcConnecting ? "正在打开扫码…" : "扫码连接钱包"}
+              </button>
+              <p className="wallet-modal-wc-hint">
+                {walletConnectConfigured
+                  ? "使用 MetaMask / Trust / OKX 等扫描二维码，支持 BSC、ETH、Polygon 等 EVM 链"
+                  : "若无法扫码，请在部署环境配置 VITE_WALLETCONNECT_PROJECT_ID（Reown Cloud）"}
+              </p>
+            </div>
+            <div className="wallet-modal-brand wallet-modal-brand-compact">
               <img className="wallet-modal-logo" src={ASTER_LOGO_URL} alt="" />
-              <div id="wallet-modal-title" className="wallet-modal-title">
-                Connect with Aster
-              </div>
+              <span className="wallet-modal-brand-caption">Connect with Aster</span>
             </div>
             <div className="wallet-modal-list">
               {wallets.length ? (
@@ -385,7 +518,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                   </button>
                 ))
               ) : (
-                <div className="wallet-modal-empty">未检测到钱包，请在钱包浏览器或扩展中打开。</div>
+                <div className="wallet-modal-empty">
+                  未检测到浏览器扩展钱包。
+                  <br />
+                  <span className="wallet-modal-empty-sub">请优先使用上方「扫码连接」，或在内置浏览器中打开本页。</span>
+                </div>
               )}
             </div>
             <p className="wallet-modal-legal">

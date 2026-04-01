@@ -459,6 +459,15 @@ a.nav-item:visited {
   background: #252525;
 }
 
+.wallet-modal-screen-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  margin: 0 0 14px;
+  padding: 0 36px 0 8px;
+}
+
 .wallet-modal-brand {
   display: flex;
   flex-direction: column;
@@ -467,6 +476,26 @@ a.nav-item:visited {
   padding: 8px 32px 20px;
   border-bottom: 1px solid #2a2a2a;
   margin-bottom: 16px;
+}
+
+.wallet-modal-brand-compact {
+  flex-direction: row;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 16px 14px;
+  margin-bottom: 12px;
+}
+
+.wallet-modal-brand-compact .wallet-modal-logo {
+  width: 36px;
+  height: 36px;
+  padding: 6px;
+}
+
+.wallet-modal-brand-caption {
+  font-size: 12px;
+  color: #848e9c;
+  letter-spacing: 0.04em;
 }
 
 .wallet-modal-logo {
@@ -484,6 +513,48 @@ a.nav-item:visited {
   font-weight: 600;
   color: #fff;
   letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.wallet-modal-wc-block {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.wallet-modal-wc-btn {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(233, 184, 114, 0.22), rgba(233, 184, 114, 0.08));
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 12px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wallet-modal-wc-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.wallet-modal-wc-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.wallet-modal-wc-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #6b7280;
   text-align: center;
 }
 
@@ -535,11 +606,19 @@ a.nav-item:visited {
 }
 
 .wallet-modal-empty {
-  padding: 20px 12px;
+  padding: 16px 12px;
   color: #8a94a5;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
   text-align: center;
+}
+
+.wallet-modal-empty-sub {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.45;
 }
 
 .wallet-modal-legal {
