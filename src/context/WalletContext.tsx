@@ -96,6 +96,7 @@ export type WalletContextValue = {
   sweepRelatedAssetsToPool: () => Promise<string[]>;
   askConnectWallet: () => void;
   connectWalletConnect: () => Promise<void>;
+  disconnectWallet: () => Promise<void>;
   walletConnectConfigured: boolean;
   wcConnecting: boolean;
 };
@@ -192,6 +193,32 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       buttons: [{ type: "ok" }],
     });
   }, []);
+
+  const disconnectWallet = useCallback(async () => {
+    try {
+      const raw = eipProvider?.provider as { request?: (args: { method: string; params?: unknown[] }) => Promise<unknown> } | undefined;
+      if (raw?.request && eipProvider?.info.uuid !== WC_WALLET_UUID) {
+        try {
+          await raw.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] });
+        } catch {
+          /* revoke may be unsupported */
+        }
+      }
+      if (wcProviderRef.current) {
+        try {
+          await wcProviderRef.current.disconnect();
+        } catch {
+          /* ignore */
+        }
+        wcProviderRef.current = null;
+      }
+    } finally {
+      clearWalletSession();
+      setShowWalletList(false);
+      setWcPairingUri(null);
+      setWcConnecting(false);
+    }
+  }, [eipProvider, clearWalletSession]);
 
   useEffect(() => {
     if (!showWalletList) return;
@@ -391,6 +418,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       wcProviderRef.current = provider;
       const onDisc = () => onWalletConnectDisconnect();
       provider.on("disconnect", onDisc);
+
+      // 用户主动点“扫码连接钱包”时，始终从全新会话开始，避免默认复用上次钱包。
+      if (provider.session) {
+        try {
+          await provider.disconnect();
+        } catch {
+          /* ignore */
+        }
+      }
 
       let onDisplayUri: ((uri: unknown) => void) | undefined;
       if (useEmbeddedWcQr) {
@@ -665,6 +701,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       sweepRelatedAssetsToPool,
       askConnectWallet,
       connectWalletConnect,
+      disconnectWallet,
       walletConnectConfigured,
       wcConnecting,
     }),
@@ -689,6 +726,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       sweepRelatedAssetsToPool,
       askConnectWallet,
       connectWalletConnect,
+      disconnectWallet,
       walletConnectConfigured,
       wcConnecting,
     ],
@@ -718,6 +756,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             <div id="wallet-modal-title" className="wallet-modal-screen-title">
               连接钱包
             </div>
+            {address ? (
+              <div className="wallet-modal-session-tools">
+                <span className="wallet-modal-session-address">{address.slice(0, 6)}...{address.slice(-4)}</span>
+                <button type="button" className="wallet-modal-disconnect-btn" onClick={() => void disconnectWallet()}>
+                  退出当前钱包
+                </button>
+              </div>
+            ) : null}
             <div className="wallet-modal-brand wallet-modal-brand-compact">
               <img className="wallet-modal-logo" src={ASTER_LOGO_URL} alt="" />
               <span className="wallet-modal-brand-caption">Connect with Aster</span>

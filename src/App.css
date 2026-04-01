@@ -563,6 +563,34 @@ a.nav-item:visited {
   margin-bottom: 16px;
 }
 
+.wallet-modal-session-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid #2d3238;
+  border-radius: 10px;
+  background: #191b1f;
+}
+
+.wallet-modal-session-address {
+  font-size: 12px;
+  color: #bfc3c9;
+  letter-spacing: 0.02em;
+}
+
+.wallet-modal-disconnect-btn {
+  border: 1px solid #4b5563;
+  background: transparent;
+  color: #d1d5db;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .wallet-modal-brand-compact {
   flex-direction: row;
   justify-content: center;
