@@ -271,9 +271,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (w.info.uuid === WC_WALLET_UUID) {
         const wc = w.provider as InstanceType<typeof EthereumProvider>;
         let addrs = wc.accounts;
-        if (!addrs?.length) {
-          await wc.enable();
+        for (let i = 0; i < 40 && !addrs?.length; i++) {
+          await new Promise((r) => setTimeout(r, 100));
           addrs = wc.accounts;
+        }
+        if (!addrs?.length) {
+          try {
+            const acc = (await wc.request({ method: "eth_accounts", params: [] })) as string[];
+            if (acc?.length) addrs = acc;
+          } catch {
+            /* ignore */
+          }
         }
         if (!addrs?.length) {
           throw new Error("WalletConnect 未返回账户，请在手机上确认连接或重试");
@@ -381,7 +389,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        await provider.enable();
+        // 手机自建二维码：enable() 在配对后仍会 eth_requestAccounts，部分钱包会失败 → 外层 catch 执行 disconnect，界面闪断
+        if (useEmbeddedWcQr) {
+          await provider.connect();
+        } else {
+          await provider.enable();
+        }
       } finally {
         if (onDisplayUri) provider.off("display_uri", onDisplayUri);
         setWcPairingUri(null);
