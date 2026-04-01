@@ -6,8 +6,11 @@ import { StakingManagePage } from "./pages/StakingManagePage";
 import { StakingPage } from "./pages/StakingPage";
 
 export default function App() {
+  const base = import.meta.env.BASE_URL;
+  const basename = base === "/" ? undefined : base.replace(/\/$/, "");
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <WalletProvider>
         <WalletUrlSync />
         <Routes>
