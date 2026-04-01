@@ -2348,8 +2348,260 @@ a.nav-item:visited {
   margin-top: 10px;
 }
 
+/* —— 平板 / 手机（TG Mini App、移动浏览器）—— */
 @media (max-width: 1320px) {
   body {
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .terminal {
+    min-width: 0;
+    width: 100%;
+    max-width: 100vw;
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .top-header {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding: max(8px, env(safe-area-inset-top, 0px)) 12px 8px;
+    height: auto;
+    min-height: 52px;
+  }
+
+  .top-nav {
+    order: 10;
+    flex: 1 1 100%;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    gap: 0;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .top-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .header-actions {
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  .brand-box {
+    min-width: 0;
+  }
+
+  .connect-btn {
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .wallet-pill {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dropdown-more {
+    min-width: min(520px, calc(100vw - 24px));
+    right: 0;
+    left: auto;
+  }
+
+  .symbol-strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: auto;
+    min-height: 44px;
+    padding: 8px 10px;
+    gap: 12px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .symbol-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .symbol-strip .pair-block,
+  .symbol-strip .stat-block {
+    flex-shrink: 0;
+  }
+
+  .stat-block.vol-block .stat-label,
+  .stat-block.vol-block .stat-value {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .layout {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .layout > .panel {
+    border-right: 0;
+  }
+
+  .layout > .chart-panel {
+    flex: 1 1 auto;
+    min-height: 240px;
+    height: 42vh;
+    max-height: 480px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .layout > .orderbook-panel {
+    flex: 0 0 auto;
+    max-height: 32vh;
+    min-height: 200px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .layout > .trade-panel {
+    flex: 0 0 auto;
+    border-left: 0;
+    max-height: none;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .chart-tools-row1 {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 36px;
+    row-gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .chart-tabline-toolbar {
+    margin-left: 0;
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .left-tools {
+    width: 32px;
+    padding: 8px 0 6px;
+    gap: 8px;
+  }
+
+  .left-tools .lt {
+    font-size: 11px;
+  }
+
+  .bottom-bar {
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 32px;
+    row-gap: 4px;
+  }
+
+  .wallet-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .wallet-modal-card {
+    max-width: none;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    max-height: 85dvh;
+  }
+
+  /* Staking */
+  .staking-app {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .top-header.staking-site-header {
+    padding-right: 8px;
+  }
+
+  .staking-site-header .staking-top-nav {
+    font-size: 13px;
+  }
+
+  .staking-site-header .staking-top-nav .nav-item.plain {
+    padding: 0 8px;
+    font-size: 13px;
+  }
+
+  .staking-main {
+    padding: 12px 12px 20px;
+    max-width: none;
+  }
+
+  .staking-h1 {
+    font-size: 22px;
+  }
+
+  .staking-dash {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 0;
+  }
+
+  .staking-dash-divider {
+    display: none;
+  }
+
+  .staking-dash-col {
+    padding: 0;
+  }
+
+  .staking-manage-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .staking-manage-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .staking-manage-tabs button {
+    font-size: 12px;
+  }
+
+  .staking-bottom-bar {
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .staking-stake-row .staking-stake-input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .staking-pool-actions {
+    width: 100%;
+  }
+
+  .staking-pool-btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
   }
 }
