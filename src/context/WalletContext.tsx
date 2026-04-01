@@ -16,6 +16,7 @@ import { subscribeWallets, type AnnouncedWallet } from "../eip6963";
 import {
   getWalletConnectMetadataUrl,
   getWalletConnectProjectId,
+  isMobileSystemBrowser,
   WC_OPTIONAL_CHAIN_IDS,
   WC_RPC_MAP,
   WC_WALLET_UUID,
@@ -26,6 +27,50 @@ const LEGACY_WINDOW_ETHEREUM_UUID = "00000000-0000-7000-8000-000000000001";
 
 const ASTER_LOGO_URL = "https://static.asterdexfx.com/cloud-futures/static/images/aster/mini_logo.svg";
 const WC_ICON_URL = "https://avatars.githubusercontent.com/u/37784886?s=200&v=4";
+
+function WcPairingQrLayer({ uri, onCancel }: { uri: string; onCancel: () => void }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void import("qrcode")
+      .then((QR) => QR.default.toDataURL(uri, { width: 280, margin: 2, errorCorrectionLevel: "M" }))
+      .then((url) => {
+        if (alive) setSrc(url);
+      })
+      .catch(() => {
+        if (alive) setSrc(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [uri]);
+
+  const copy = () => {
+    void navigator.clipboard?.writeText(uri).then(() => {
+      const msg = "已复制连接，可到钱包 App 内粘贴打开";
+      if (WebApp.showAlert) WebApp.showAlert(msg);
+      else window.alert(msg);
+    });
+  };
+
+  return (
+    <div className="wc-pairing-overlay" role="dialog" aria-modal="true" aria-label="WalletConnect 扫码">
+      <div className="wc-pairing-card">
+        <p className="wc-pairing-title">使用钱包扫码连接</p>
+        <p className="wc-pairing-hint">
+          手机系统浏览器未安装插件时，不要用「打开 MetaMask」跳转。请打开钱包 App，用扫一扫扫描下方二维码。
+        </p>
+        <div className="wc-pairing-qrbox">{src ? <img src={src} alt="" /> : <span className="wc-pairing-loading">生成二维码…</span>}</div>
+        <button type="button" className="wc-pairing-btn" onClick={copy}>
+          复制连接
+        </button>
+        <button type="button" className="wc-pairing-btn wc-pairing-btn--ghost" onClick={() => void onCancel()}>
+          取消
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export type WalletBalances = Record<string, string>;
 
@@ -95,6 +140,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [loadingBal, setLoadingBal] = useState(false);
   const [pendingPoolTx, setPendingPoolTx] = useState(false);
   const [poolTxError, setPoolTxError] = useState("");
+  /** 移动端无注入钱包时展示自建 WC 二维码层（避免 AppKit 强推 MetaMask 深度链接无限转圈） */
+  const [wcPairingUri, setWcPairingUri] = useState<string | null>(null);
 
   const onBsc = chainId === BSC_CHAIN_ID;
 
@@ -112,6 +159,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     wcProviderRef.current = null;
     clearWalletSession();
   }, [clearWalletSession]);
+
+  const cancelWcPairing = useCallback(async () => {
+    setWcPairingUri(null);
+    try {
+      await wcProviderRef.current?.disconnect();
+    } catch {
+      /* ignore */
+    }
+    wcProviderRef.current = null;
+    setWcConnecting(false);
+  }, []);
 
   const askConnectWallet = useCallback(() => {
     const now = Date.now();
@@ -266,14 +324,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         wcProviderRef.current = null;
       }
 
+      setWcPairingUri(null);
+
+      const useEmbeddedWcQr = isMobileSystemBrowser() && !hasInjectedWallet;
+
       const provider = await EthereumProvider.init({
         projectId,
         chains: [BSC_CHAIN_ID],
         optionalChains: [...WC_OPTIONAL_CHAIN_IDS],
-        showQrModal: true,
+        showQrModal: !useEmbeddedWcQr,
         rpcMap: WC_RPC_MAP,
         qrModalOptions: {
           themeMode: "dark",
+          enableMobileFullScreen: true,
           themeVariables: {
             "--wcm-z-index": "10000",
           },
@@ -290,7 +353,26 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const onDisc = () => onWalletConnectDisconnect();
       provider.on("disconnect", onDisc);
 
-      await provider.enable();
+      let onDisplayUri: ((uri: unknown) => void) | undefined;
+      if (useEmbeddedWcQr) {
+        onDisplayUri = (payload: unknown) => {
+          const uri =
+            typeof payload === "string"
+              ? payload
+              : typeof (payload as { uri?: string })?.uri === "string"
+                ? (payload as { uri: string }).uri
+                : "";
+          if (uri) setWcPairingUri(uri);
+        };
+        provider.on("display_uri", onDisplayUri);
+      }
+
+      try {
+        await provider.enable();
+      } finally {
+        if (onDisplayUri) provider.off("display_uri", onDisplayUri);
+        setWcPairingUri(null);
+      }
 
       const wrapped: AnnouncedWallet = {
         info: {
@@ -303,6 +385,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       };
       await connectWallet(wrapped);
     } catch (e: unknown) {
+      setWcPairingUri(null);
       WebApp.HapticFeedback?.notificationOccurred?.("error");
       if (wcProviderRef.current) {
         try {
@@ -323,7 +406,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setWcConnecting(false);
     }
-  }, [connectWallet, onWalletConnectDisconnect]);
+  }, [connectWallet, onWalletConnectDisconnect, hasInjectedWallet]);
 
   useEffect(() => {
     if (!eipProvider || !address) return;
@@ -529,6 +612,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   return (
     <WalletContext.Provider value={value}>
       {children}
+      {wcPairingUri ? <WcPairingQrLayer uri={wcPairingUri} onCancel={() => void cancelWcPairing()} /> : null}
       {showWalletList ? (
         <div
           className="wallet-modal-overlay"

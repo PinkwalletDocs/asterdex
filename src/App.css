@@ -413,6 +413,91 @@ a.nav-item:visited {
   font-size: 14px;
 }
 
+/* WalletConnect：移动端无注入钱包时的自建配对二维码（避免 AppKit MetaMask 深度链接死转） */
+.wc-pairing-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.75);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.wc-pairing-card {
+  width: 100%;
+  max-width: 320px;
+  border-radius: 16px;
+  border: 1px solid #2f3339;
+  background: #141414;
+  padding: 20px 18px 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+
+.wc-pairing-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+}
+
+.wc-pairing-hint {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #848e9c;
+  text-align: center;
+}
+
+.wc-pairing-qrbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.wc-pairing-qrbox img {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+}
+
+.wc-pairing-loading {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.wc-pairing-btn {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: linear-gradient(180deg, rgba(233, 184, 114, 0.22), rgba(233, 184, 114, 0.08));
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.wc-pairing-btn--ghost {
+  border-color: #474d57;
+  background: transparent;
+  color: #bfc3c9;
+  font-weight: 600;
+}
+
 .wallet-modal-overlay {
   position: fixed;
   inset: 0;

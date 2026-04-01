@@ -38,4 +38,10 @@ export function getWalletConnectMetadataUrl(): string {
   return base ? `${window.location.origin}${base}` : window.location.origin;
 }
 
+/** 系统浏览器（无钱包 WebView）常见于手机；与桌面区分以改用 URI 二维码而非 App 深度链接 */
+export function isMobileSystemBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent);
+}
+
 export const WC_WALLET_UUID = "walletconnect-v2";
