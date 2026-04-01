@@ -17,6 +17,7 @@ import { subscribeWallets, type AnnouncedWallet } from "../eip6963";
 /** When no EIP-6963 announcement, still allow direct connect via legacy `window.ethereum` (many in-app browsers). */
 const LEGACY_WINDOW_ETHEREUM_UUID = "00000000-0000-7000-8000-000000000001";
 import {
+  getWalletConnectMetadataUrl,
   getWalletConnectProjectId,
   WC_OPTIONAL_CHAIN_IDS,
   WC_RPC_MAP,
@@ -220,6 +221,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
     setWcConnecting(true);
     try {
+      // 先关掉本应用连接层：WalletConnect 默认 z-index≈89，会被本页 overlay(2000) 挡住，enable() 会一直等
+      setShowWalletList(false);
+      await new Promise((r) => setTimeout(r, 80));
+
       if (wcProviderRef.current) {
         try {
           await wcProviderRef.current.disconnect();
@@ -235,10 +240,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         optionalChains: [...WC_OPTIONAL_CHAIN_IDS],
         showQrModal: true,
         rpcMap: WC_RPC_MAP,
+        qrModalOptions: {
+          themeMode: "dark",
+          themeVariables: {
+            "--wcm-z-index": "10000",
+          },
+        },
         metadata: {
           name: "Aster",
           description: "Aster DApp",
-          url: window.location.origin,
+          url: getWalletConnectMetadataUrl(),
           icons: [ASTER_LOGO_URL],
         },
       });

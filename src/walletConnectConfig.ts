@@ -31,4 +31,11 @@ export function getWalletConnectProjectId(): string {
   return (import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | undefined)?.trim() ?? "";
 }
 
+/** Reown 校验用：含 Vite base（如 /asterdex），避免子路径部署时 metadata 与站点不一致 */
+export function getWalletConnectMetadataUrl(): string {
+  if (typeof window === "undefined") return "";
+  const base = import.meta.env.BASE_URL.replace(/\/+$/, "");
+  return base ? `${window.location.origin}${base}` : window.location.origin;
+}
+
 export const WC_WALLET_UUID = "walletconnect-v2";
