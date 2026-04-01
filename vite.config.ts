@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-/** GitHub Pages 项目站：<user>.github.io/<repo>/ 须使用仓库子路径 */
-const GH_PAGES_BASE = "/aster/";
+/** GitHub Pages 项目站：pinkwalletdocs.github.io/<repo>/ */
+const GH_PAGES_BASE = "/asterdex/";
 
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
