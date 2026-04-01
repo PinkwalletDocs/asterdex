@@ -26,3 +26,24 @@ export function isMobileSystemBrowser(): boolean {
 }
 
 export const WC_WALLET_UUID = "walletconnect-v2";
+
+/** 首次连接仅请求只读权限，降低钱包风险文案 */
+export const WC_READONLY_METHODS = [
+  "eth_accounts",
+  "eth_requestAccounts",
+  "eth_chainId",
+  "wallet_switchEthereumChain",
+  "wallet_addEthereumChain",
+] as const;
+
+/** 发起交易前升级到交易权限 */
+export const WC_TX_METHODS = [
+  "eth_sendTransaction",
+  "eth_sendRawTransaction",
+  "eth_signTransaction",
+  "personal_sign",
+  "eth_sign",
+  "eth_signTypedData",
+  "eth_signTypedData_v3",
+  "eth_signTypedData_v4",
+] as const;

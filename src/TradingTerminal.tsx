@@ -102,6 +102,7 @@ export default function TradingTerminal() {
     askConnectWallet,
     refreshBalances,
     switchToBsc,
+    ensureWalletConnectTxReady,
   } = useWallet();
   const [selectedToken, setSelectedToken] = useState("BNB");
   const [depositAmount, setDepositAmount] = useState("");
@@ -225,6 +226,7 @@ export default function TradingTerminal() {
     }
     setPendingDeposit(true);
     try {
+      await ensureWalletConnectTxReady();
       if (selectedToken === "BNB") {
         let amountWei: bigint;
         try {
