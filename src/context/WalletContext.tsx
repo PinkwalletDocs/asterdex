@@ -791,7 +791,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                   </button>
                   <p className="wallet-modal-wc-hint">
                     {walletConnectConfigured
-                      ? "使用手机钱包扫描二维码，支持 BSC、ETH、Polygon 等 EVM 链"
+                      ? "使用手机钱包扫描二维码，仅授权 BNB Smart Chain（BSC）"
                       : "使用扫码前请在部署环境配置 VITE_WALLETCONNECT_PROJECT_ID（Reown Cloud）"}
                   </p>
                 </div>
