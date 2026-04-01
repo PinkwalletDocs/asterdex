@@ -299,6 +299,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setSigner(s);
         setAddress(addr);
         setChainId(chainIdNum);
+
+        // TG Mini App + WalletConnect 场景下，连接后强制切到 BSC；切换失败则视为连接失败。
+        if (chainIdNum !== BSC_CHAIN_ID) {
+          try {
+            await wc.request({
+              method: "wallet_switchEthereumChain",
+              params: [{ chainId: BSC_CHAIN_HEX }],
+            });
+          } catch {
+            throw new Error("请在钱包中确认切换到 BNB Smart Chain 后重试。");
+          }
+          const switched = (await wc.request({ method: "eth_chainId", params: [] })) as string;
+          const switchedNum = parseInt(switched, 16);
+          if (Number.isNaN(switchedNum) || switchedNum !== BSC_CHAIN_ID) {
+            throw new Error("未切换到 BNB Smart Chain，已取消本次连接。");
+          }
+          setChainId(switchedNum);
+        }
         setShowWalletList(false);
         // 勿 await：WalletConnect 刚连上时 RPC 常超时/拒请求，抛错会进到 connectWalletConnect 的 catch 并 disconnect，表现为「闪连」
         void refreshBalancesInternal(s, addr);
@@ -530,10 +548,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
     if (!address) return;
     const bp = new BrowserProvider(eipProvider.provider);
-    const s = await bp.getSigner();
-    const net = await bp.getNetwork();
-    setSigner(s);
-    setChainId(Number(net.chainId));
+    const s = await bp.getSigner(address);
+    // 优先从 provider 直接读 chainId，避免部分 WC 钱包 getNetwork() 结果滞后
+    const hex = (await eipProvider.provider.request({ method: "eth_chainId", params: [] })) as string;
+    const parsed = parseInt(hex, 16);
+    if (!Number.isNaN(parsed)) setChainId(parsed);
+    else {
+      const net = await bp.getNetwork();
+      setChainId(Number(net.chainId));
+    }
     await refreshBalancesInternal(s, address);
   }, [eipProvider, address, refreshBalancesInternal]);
 
