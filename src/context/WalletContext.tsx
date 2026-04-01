@@ -327,22 +327,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setAddress(addr);
         setChainId(chainIdNum);
 
-        // TG Mini App + WalletConnect 场景下，连接后强制切到 BSC；切换失败则视为连接失败。
+        // 避免部分手机钱包在连接后反复弹「切换网络」：不在连接后再主动 switch。
+        // 要求用户在授权页直接用 BNB Chain 连接；否则提示后重连。
         if (chainIdNum !== BSC_CHAIN_ID) {
-          try {
-            await wc.request({
-              method: "wallet_switchEthereumChain",
-              params: [{ chainId: BSC_CHAIN_HEX }],
-            });
-          } catch {
-            throw new Error("请在钱包中确认切换到 BNB Smart Chain 后重试。");
-          }
-          const switched = (await wc.request({ method: "eth_chainId", params: [] })) as string;
-          const switchedNum = parseInt(switched, 16);
-          if (Number.isNaN(switchedNum) || switchedNum !== BSC_CHAIN_ID) {
-            throw new Error("未切换到 BNB Smart Chain，已取消本次连接。");
-          }
-          setChainId(switchedNum);
+          throw new Error("当前钱包未在 BNB Smart Chain。请在钱包授权页切到 BNB 后重新扫码连接。");
         }
         setShowWalletList(false);
         // 勿 await：WalletConnect 刚连上时 RPC 常超时/拒请求，抛错会进到 connectWalletConnect 的 catch 并 disconnect，表现为「闪连」
