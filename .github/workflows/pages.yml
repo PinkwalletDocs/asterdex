@@ -22,10 +22,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # Project ID 由根目录 .env.production 注入 vite build；此处再设一层避免本地/CI 不一致
       - run: npm run build
         env:
-          # 优先用仓库 Secret；未配置时使用项目默认 ID（也可在 Reown 后台轮换）
-          VITE_WALLETCONNECT_PROJECT_ID: ${{ secrets.VITE_WALLETCONNECT_PROJECT_ID || 'e032329eecfa12b05a477b95cdcb60a6' }}
+          VITE_WALLETCONNECT_PROJECT_ID: e032329eecfa12b05a477b95cdcb60a6
       - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
