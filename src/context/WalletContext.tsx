@@ -389,9 +389,45 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        // 手机自建二维码：enable() 在配对后仍会 eth_requestAccounts，部分钱包会失败 → 外层 catch 执行 disconnect，界面闪断
+        // 手机自建二维码：部分钱包已授权但 connect() Promise 不返回，这里用「会话就绪」兜底，避免卡在二维码界面。
         if (useEmbeddedWcQr) {
-          await provider.connect();
+          let cleaned = false;
+          const readyPromise = new Promise<"ready">((resolve) => {
+            const cleanup = () => {
+              if (cleaned) return;
+              cleaned = true;
+              provider.off("accountsChanged", onAccountsReady);
+              provider.off("connect", onConnectReady);
+              provider.off("session_update", onSessionReady);
+              window.clearInterval(pollId);
+              window.clearTimeout(timeoutId);
+            };
+            const done = () => {
+              cleanup();
+              resolve("ready");
+            };
+            const checkReady = () => {
+              if ((provider.accounts && provider.accounts.length > 0) || provider.session) done();
+            };
+            const onAccountsReady = () => checkReady();
+            const onConnectReady = () => checkReady();
+            const onSessionReady = () => checkReady();
+            provider.on("accountsChanged", onAccountsReady);
+            provider.on("connect", onConnectReady);
+            provider.on("session_update", onSessionReady);
+            const pollId = window.setInterval(checkReady, 250);
+            const timeoutId = window.setTimeout(done, 45000);
+            checkReady();
+          });
+
+          const connectPromise = provider.connect().then(() => "connect" as const);
+          const first = await Promise.race([connectPromise, readyPromise]);
+          if (first === "ready") {
+            // connect() 可能仍挂起，但已有 session/accounts，先继续后续绑定流程。
+            void connectPromise.catch(() => {
+              /* ignore */
+            });
+          }
         } else {
           await provider.enable();
         }
