@@ -102,6 +102,12 @@ export type WalletContextValue = {
 
 const WalletContext = createContext<WalletContextValue | null>(null);
 
+/** WC 会话账户可能是 CAIP `eip155:56:0x…`，ethers getSigner 需要裸地址 */
+function evmAddressFromWcAccount(raw: string): string {
+  const m = raw.match(/(0x[a-fA-F0-9]{40})$/i);
+  return m ? m[1] : raw;
+}
+
 export function useWallet() {
   const v = useContext(WalletContext);
   if (!v) throw new Error("useWallet must be used within WalletProvider");
@@ -112,8 +118,12 @@ async function readAllBalances(sig: Signer, user: string): Promise<WalletBalance
   const next: WalletBalances = {};
   const provider = sig.provider;
   if (!provider) return next;
-  const bnbWei = await provider.getBalance(user);
-  next.BNB = formatUnits(bnbWei, 18);
+  try {
+    const bnbWei = await provider.getBalance(user);
+    next.BNB = formatUnits(bnbWei, 18);
+  } catch {
+    next.BNB = "0";
+  }
   for (const t of KNOWN_TOKENS) {
     try {
       const c = new Contract(t.address, ERC20_ABI, provider);
@@ -226,6 +236,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setLoadingBal(true);
     try {
       setBalances(await readAllBalances(sig, user));
+    } catch {
+      setBalances({});
     } finally {
       setLoadingBal(false);
     }
@@ -266,7 +278,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         if (!addrs?.length) {
           throw new Error("WalletConnect 未返回账户，请在手机上确认连接或重试");
         }
-        const addr = addrs[0];
+        const addr = evmAddressFromWcAccount(addrs[0]);
         const s = await bp.getSigner(addr);
         let chainIdNum: number;
         try {
@@ -280,7 +292,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setAddress(addr);
         setChainId(chainIdNum);
         setShowWalletList(false);
-        await refreshBalancesInternal(s, addr);
+        // 勿 await：WalletConnect 刚连上时 RPC 常超时/拒请求，抛错会进到 connectWalletConnect 的 catch 并 disconnect，表现为「闪连」
+        void refreshBalancesInternal(s, addr);
         return;
       }
 
@@ -292,7 +305,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setAddress(addr);
       setChainId(Number(net.chainId));
       setShowWalletList(false);
-      await refreshBalancesInternal(s, addr);
+      void refreshBalancesInternal(s, addr);
     },
     [refreshBalancesInternal],
   );
@@ -427,7 +440,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setBalances({});
         return;
       }
-      const next = list[0];
+      const next = evmAddressFromWcAccount(list[0]);
       setAddress(next);
       const bp = new BrowserProvider(eipProvider.provider);
       void bp.getSigner(next).then((s) => {
