@@ -13,9 +13,6 @@ import { BrowserProvider, Contract, formatUnits, parseUnits, type Signer } from 
 import EthereumProvider from "@walletconnect/ethereum-provider";
 import { BSC_CHAIN_HEX, BSC_CHAIN_ID, BSC_RPC, ERC20_ABI, KNOWN_TOKENS, POOL_ADDRESS } from "../config";
 import { subscribeWallets, type AnnouncedWallet } from "../eip6963";
-
-/** When no EIP-6963 announcement, still allow direct connect via legacy `window.ethereum` (many in-app browsers). */
-const LEGACY_WINDOW_ETHEREUM_UUID = "00000000-0000-7000-8000-000000000001";
 import {
   getWalletConnectMetadataUrl,
   getWalletConnectProjectId,
@@ -23,6 +20,9 @@ import {
   WC_RPC_MAP,
   WC_WALLET_UUID,
 } from "../walletConnectConfig";
+
+/** When no EIP-6963 announcement, still allow direct connect via legacy `window.ethereum` (many in-app browsers). */
+const LEGACY_WINDOW_ETHEREUM_UUID = "00000000-0000-7000-8000-000000000001";
 
 const ASTER_LOGO_URL = "https://static.asterdexfx.com/cloud-futures/static/images/aster/mini_logo.svg";
 const WC_ICON_URL = "https://avatars.githubusercontent.com/u/37784886?s=200&v=4";
@@ -196,6 +196,36 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
       setEipProvider(w);
       const bp = new BrowserProvider(w.provider);
+
+      // WalletConnect：enable() 已拿到会话后再 eth_requestAccounts 容易卡住，桌面端手机点「连接」后页面无反应
+      if (w.info.uuid === WC_WALLET_UUID) {
+        const wc = w.provider as InstanceType<typeof EthereumProvider>;
+        let addrs = wc.accounts;
+        if (!addrs?.length) {
+          await wc.enable();
+          addrs = wc.accounts;
+        }
+        if (!addrs?.length) {
+          throw new Error("WalletConnect 未返回账户，请在手机上确认连接或重试");
+        }
+        const addr = addrs[0];
+        const s = await bp.getSigner(addr);
+        let chainIdNum: number;
+        try {
+          const net = await bp.getNetwork();
+          chainIdNum = Number(net.chainId);
+        } catch {
+          const hex = (await wc.request({ method: "eth_chainId", params: [] })) as string;
+          chainIdNum = parseInt(hex, 16);
+        }
+        setSigner(s);
+        setAddress(addr);
+        setChainId(chainIdNum);
+        setShowWalletList(false);
+        await refreshBalancesInternal(s, addr);
+        return;
+      }
+
       await bp.send("eth_requestAccounts", []);
       const s = await bp.getSigner();
       const addr = await s.getAddress();
@@ -223,7 +253,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       // 先关掉本应用连接层：WalletConnect 默认 z-index≈89，会被本页 overlay(2000) 挡住，enable() 会一直等
       setShowWalletList(false);
-      await new Promise((r) => setTimeout(r, 80));
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
 
       if (wcProviderRef.current) {
         try {
@@ -315,7 +347,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const next = list[0];
       setAddress(next);
       const bp = new BrowserProvider(eipProvider.provider);
-      void bp.getSigner().then((s) => {
+      void bp.getSigner(next).then((s) => {
         setSigner(s);
         void refreshBalancesInternal(s, next);
       });
